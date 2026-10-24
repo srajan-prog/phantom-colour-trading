@@ -1,0 +1,121 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PHANTOM ULTRA</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080b14;color:#f1f5f9;font-family:Arial;padding:16px}
+main{max-width:600px;margin:auto}
+header{text-align:center;padding:20px 0}
+h1{color:#a78bfa;letter-spacing:4px}
+.card{background:#131a2a;border:1px solid #303a52;border-radius:14px;padding:16px;margin:14px 0}
+h2{font-size:17px;color:#c4b5fd}
+textarea,button{width:100%;padding:13px;border-radius:9px;margin:6px 0;font-size:15px}
+textarea{height:150px;background:#080b14;color:white;border:1px solid #39445c}
+button{border:0;background:#7c3aed;color:white;font-weight:bold}
+.secondary{background:#293449}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{padding:12px;background:#080b14;border-radius:9px;overflow-wrap:anywhere}
+small{color:#a6b2ca}
+table{width:100%;border-collapse:collapse}
+td,th{text-align:left;padding:9px 4px;border-bottom:1px solid #303a52}
+.green{color:#4ade80}.red{color:#fb7185}.violet{color:#c4b5fd}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>PHANTOM ULTRA</h1>
+<div>NUMBER & COLOUR ANALYZER</div>
+<small>HISTORY • FREQUENCY • STATISTICS</small>
+</header>
+
+<div class="card">
+<h2>01 / Enter results</h2>
+<small>One result per line: Period,Number,Colour</small>
+<textarea id="data" placeholder="1005,7,Green&#10;1004,2,Red&#10;1003,9,Green"></textarea>
+<button onclick="analyse()">ANALYSE RESULTS</button>
+<button class="secondary" onclick="example()">LOAD TEST DATA</button>
+<button class="secondary" onclick="clearData()">CLEAR ALL</button>
+<p id="message"></p>
+</div>
+
+<div class="card">
+<h2>02 / Summary</h2>
+<div class="grid">
+<div class="stat"><small>Total results</small><h2 id="total">0</h2></div>
+<div class="stat"><small>Most frequent number</small><h2 id="bestN">—</h2></div>
+<div class="stat"><small>Most frequent colour</small><h2 id="bestC">—</h2></div>
+<div class="stat"><small>Latest entered number</small><h2 id="lastN">—</h2></div>
+</div>
+</div>
+
+<div class="card">
+<h2>03 / Number frequency (0–9)</h2>
+<table><thead><tr><th>Number</th><th>Count</th><th>Percent</th></tr></thead><tbody id="numberRows"></tbody></table>
+</div>
+
+<div class="card">
+<h2>04 / Colour frequency</h2>
+<table><thead><tr><th>Colour</th><th>Count</th><th>Percent</th></tr></thead><tbody id="colourRows"></tbody></table>
+</div>
+
+<div class="card">
+<h2>05 / Recent history</h2>
+<table><thead><tr><th>Period</th><th>Number</th><th>Colour</th></tr></thead><tbody id="historyRows"></tbody></table>
+</div>
+
+<div class="card">
+<h2>06 / Statistical report</h2>
+<p id="report">Enter actual results to view the report.</p>
+<small>Past frequency cannot reliably predict a random future result. This page is not connected to YaarWin and does not retrieve live results.</small>
+</div>
+</main>
+
+<script>
+function analyse(){
+ const lines=document.getElementById('data').value.trim().split(/\n+/);
+ const results=[],seen=new Set();let invalid=0;
+ for(let line of lines){
+  if(!line.trim()||/^period\b/i.test(line.trim()))continue;
+  let p=line.trim().split(/[,;\t]+/).map(x=>x.trim());
+  if(p.length<3)p=line.trim().split(/\s+/);
+  const period=p[0],num=Number(p[1]),raw=(p[2]||'').toLowerCase();
+  const colour=raw==='g'?'Green':raw==='r'?'Red':raw==='v'?'Violet':raw[0]==='g'?'Green':raw[0]==='r'?'Red':raw[0]==='v'?'Violet':'';
+  if(!period||p.length<3||!Number.isInteger(num)||num<0||num>9||!colour){invalid++;continue}
+  if(seen.has(period))continue;
+  seen.add(period);results.push({period,num,colour});
+ }
+ const n=Array(10).fill(0),c={Green:0,Red:0,Violet:0};
+ results.forEach(r=>{n[r.num]++;c[r.colour]++});
+ const total=results.length,topNum=n.indexOf(Math.max(...n));
+ const topColour=Object.keys(c).sort((a,b)=>c[b]-c[a])[0];
+ document.getElementById('total').textContent=total;
+ document.getElementById('bestN').textContent=total?n[topNum]?topNum+' ('+n[topNum]+')':'—':'—';
+ document.getElementById('bestC').textContent=total&&c[topColour]?topColour+' ('+c[topColour]+')':'—';
+ document.getElementById('lastN').textContent=total?results[0].num:'—';
+ document.getElementById('numberRows').innerHTML=n.map((v,i)=>`<tr><td>${i}</td><td>${v}</td><td>${total?(100*v/total).toFixed(1):'0.0'}%</td></tr>`).join('');
+ document.getElementById('colourRows').innerHTML=Object.entries(c).map(([k,v])=>`<tr><td class="${k.toLowerCase()}">${k}</td><td>${v}</td><td>${total?(100*v/total).toFixed(1):'0.0'}%</td></tr>`).join('');
+ document.getElementById('historyRows').innerHTML=results.slice(0,20).map(r=>`<tr><td>${esc(r.period)}</td><td>${r.num}</td><td class="${r.colour.toLowerCase()}">${r.colour}</td></tr>`).join('');
+ document.getElementById('report').textContent=total?'Analysed '+total+' valid results. Number '+topNum+' occurred '+n[topNum]+' times. '+topColour+' appeared '+c[topColour]+' times. This is a summary of past data, not a next-result prediction.':'No valid results found. Check the format.';
+ document.getElementById('message').textContent='Done. '+invalid+' invalid line(s) skipped.';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]))}
+function example(){
+ document.getElementById('data').value='Period,Number,Colour\n1005,7,Green\n1004,2,Red\n1003,9,Green\n1002,0,Violet\n1001,5,Red';
+ analyse();
+ document.getElementById('message').textContent='Test data only. Replace it with real recorded results.';
+}
+function clearData(){
+ document.getElementById('data').value='';
+ ['total','bestN','bestC','lastN'].forEach(id=>document.getElementById(id).textContent=id==='total'?'0':'—');
+ ['numberRows','colourRows','historyRows'].forEach(id=>document.getElementById(id).innerHTML='');
+ document.getElementById('report').textContent='Enter actual results to view the report.';
+ document.getElementById('message').textContent='Cleared.';
+}
+</script>
+</body>
+</html>
