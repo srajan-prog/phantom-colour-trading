@@ -1,0 +1,121 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PHANTOM COLOUR TRADING</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:20px;background:#090b12;color:white;font-family:Arial,sans-serif}
+header{text-align:center;font-size:25px;font-weight:900;color:#ff4059;padding:18px 0}
+.card{background:#181c28;border:1px solid #303647;border-radius:16px;padding:18px;margin-bottom:18px}
+h2{font-size:19px}
+input,button{width:100%;padding:14px;border:0;border-radius:10px;font-size:16px;margin:5px 0}
+input{background:#0c0f18;border:1px solid #394052;color:white}
+.colors{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.green{background:#16a34a;color:white}
+.red{background:#dc3545;color:white}
+.violet{background:#7c3aed;color:white}
+button{font-weight:bold}
+.selected{outline:3px solid white}
+.save{background:#ff4059;color:white;margin-top:15px}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#0c0f18;border-radius:10px;padding:15px}
+.stat strong{display:block;font-size:25px;margin-top:8px}
+.small{color:#aeb5c7;font-size:13px;line-height:1.5}
+table{width:100%;border-collapse:collapse}
+td,th{text-align:left;padding:10px 4px;border-bottom:1px solid #303647}
+</style>
+</head>
+<body>
+<header>⚡ PHANTOM COLOUR TRADING</header>
+
+<div class="card">
+<h2>ADD ACTUAL RESULT</h2>
+<input id="period" placeholder="Enter period ID">
+<div class="colors">
+<button class="green" data-c="Green">GREEN</button>
+<button class="red" data-c="Red">RED</button>
+<button class="violet" data-c="Violet">VIOLET</button>
+</div>
+<p id="selected" class="small">Select the actual result colour.</p>
+<button class="save" id="save">SAVE RESULT</button>
+<p id="msg" class="small"></p>
+</div>
+
+<div class="card">
+<h2>RESULT STATISTICS</h2>
+<div class="statgrid">
+<div class="stat">Total results<strong id="total">0</strong></div>
+<div class="stat">Green<strong id="g">0</strong></div>
+<div class="stat">Red<strong id="r">0</strong></div>
+<div class="stat">Violet<strong id="v">0</strong></div>
+</div>
+</div>
+
+<div class="card">
+<h2>ROUND HISTORY</h2>
+<table>
+<thead><tr><th>Period</th><th>Colour</th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+<p id="empty" class="small">No results saved yet.</p>
+<button id="export">EXPORT CSV</button>
+</div>
+
+<p class="small">Records actual results entered by you. This panel is not connected to YaarWin and cannot predict future colours.</p>
+
+<script>
+const key="phantomColourHistory";
+let history=[];
+try{history=JSON.parse(localStorage.getItem(key)||"[]");if(!Array.isArray(history))history=[]}catch(e){history=[]}
+let colour="";
+const $=id=>document.getElementById(id);
+
+document.querySelectorAll("[data-c]").forEach(b=>{
+ b.onclick=()=>{
+  colour=b.dataset.c;
+  document.querySelectorAll("[data-c]").forEach(x=>x.classList.toggle("selected",x===b));
+  $("selected").textContent="Selected: "+colour;
+ };
+});
+
+function draw(){
+ $("total").textContent=history.length;
+ $("g").textContent=history.filter(x=>x.colour==="Green").length;
+ $("r").textContent=history.filter(x=>x.colour==="Red").length;
+ $("v").textContent=history.filter(x=>x.colour==="Violet").length;
+ $("rows").replaceChildren();
+ history.forEach(x=>{
+  const tr=document.createElement("tr");
+  const p=document.createElement("td");p.textContent=x.period;
+  const c=document.createElement("td");c.textContent=x.colour;
+  c.style.color=x.colour==="Green"?"#22c55e":x.colour==="Red"?"#ff4059":"#a78bfa";
+  tr.append(p,c);$("rows").appendChild(tr);
+ });
+ $("empty").hidden=history.length>0;
+}
+$("save").onclick=()=>{
+ const period=$("period").value.trim();
+ if(!period||!colour){$("msg").textContent="Enter a period and choose a colour.";return}
+ if(history.some(x=>x.period===period)){$("msg").textContent="This period is already saved.";return}
+ history.unshift({period,colour});
+ try{localStorage.setItem(key,JSON.stringify(history))}
+ catch(e){history.shift();$("msg").textContent="Storage failed.";return}
+ $("period").value="";colour="";
+ document.querySelectorAll("[data-c]").forEach(x=>x.classList.remove("selected"));
+ $("selected").textContent="Select the next actual result.";
+ $("msg").textContent="Saved successfully.";
+ draw();
+};
+$("export").onclick=()=>{
+ const csv="Period,Colour\n"+history.map(x=>'"'+x.period.replace(/"/g,'""')+'","'+x.colour+'"').join("\n");
+ const url=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+ const a=document.createElement("a");a.href=url;a.download="phantom-history.csv";a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+draw();
+</script>
+</body>
+</html>
